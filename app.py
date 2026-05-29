@@ -1,12 +1,3 @@
-"""
-Aplicație IA pe Echipă - Platformă de Optimizare și Procesare a Limbajului Natural (NLP)
-Interfață grafică completă realizată în Streamlit.
-
-Acest fișier centralizează și parametrizează complet:
-1. Modulul TSP: Rulare individuală și benchmark comparativ global pentru BKT, NN, HC, SA, GA.
-2. Modulul NLP: Antrenare și evaluare pe dataset-uri EXTINSE REALE în engleză (IMDB și SMS Spam).
-"""
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -139,7 +130,7 @@ if modul_principal == "🗺️ Optimizare Probleme Combinatorice (TSP)":
         n_bench = st.slider("Alegeți N pentru Benchmark:", 5, 12, 10, help="N este limitat la maxim 12 pentru a permite rularea Backtracking-ului fără blocaje.")
         
         if st.button("📊 Pornește Comparația Globală"):
-            matrice_bench = genereaza_matready = genereaza_matrice_aleatorie(n_bench)
+            matrice_bench = genereaza_matrice_aleatorie(n_bench)
             rezultate_globale = {}
             
             with st.spinner("Se rulează benchmark-ul pentru toți algoritmii..."):
@@ -189,13 +180,20 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
     @st.cache_data
     def incarca_dataset_real(tip_dataset):
         try:
-            if tip_dataset == "IMDB Movie Reviews (Sentiment Analysis)":
-                cale = "data/IMDB Dataset.csv"
+            if tip_dataset == "AG News Classification (World/Sports/Business/Sci-Tech)":
+                cale = "data/train.csv" 
                 if not os.path.exists(cale):
                     return None
                 df = pd.read_csv(cale)
-                df = df.rename(columns={'review': 'text', 'sentiment': 'label'})
-                return df
+                
+                # Preprocesare AG News: Combinam Titlul cu Descrierea
+                df['text'] = df['Title'] + " " + df['Description']
+                
+                # Mapam indexul claselor la numele lor reale
+                mapare_clase = {1: 'World', 2: 'Sports', 3: 'Business', 4: 'Sci-Tech'}
+                df['label'] = df['Class Index'].map(mapare_clase)
+                
+                return df[['text', 'label']]
                 
             elif tip_dataset == "SMS Spam Collection (Spam/Ham)":
                 cale = "data/SMSSpamCollection.csv"
@@ -223,7 +221,7 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
     with col_nlp_st:
         st.subheader("Configurare Model și Pipeline")
         dataset_ales = st.selectbox("Selectați Dataset-ul Extins (Engleză):", [
-            "IMDB Movie Reviews (Sentiment Analysis)",
+            "AG News Classification (World/Sports/Business/Sci-Tech)",
             "SMS Spam Collection (Spam/Ham)"
         ])
         
@@ -246,7 +244,7 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
             df_nlp = df_nlp.dropna(subset=['text', 'label'])
             df_nlp['text'] = df_nlp['text'].astype(str)
         else:
-            st.error(f"❌ Nu s-a găsit fișierul corect în directorul 'data/'. Asigurați-vă că fișierele se numesc exact 'IMDB Dataset.csv' sau 'SMSSpamCollection.csv'.")
+            st.error(f"❌ Nu s-a găsit fișierul corect în directorul 'data/'. Asigurați-vă că fișierele se numesc exact 'train.csv' (AG News) sau 'SMSSpamCollection.csv' (Spam).")
             st.stop()
             
         model_ales = st.selectbox("Selectați Clasificatorul ML:", ["LinearSVC", "Naive Bayes", "Random Forest"])
@@ -266,7 +264,7 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
         st.dataframe(df_nlp.head(5), use_container_width=True)
         
         if buton_nlp:
-            # Împărțirea datelor în Train (70%) și Test (30%)
+            # Impartirea datelor in Train (70%) si Test (30%)
             from sklearn.model_selection import train_test_split
             X_train, X_test, y_train, y_test = train_test_split(df_nlp['text'], df_nlp['label'], test_size=0.3, random_state=42)
             
@@ -279,18 +277,19 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
             st.success(f"🚀 Model antrenat pe bune în {timp_nlp:.4f} secunde!")
             st.metric("Acuratețea Generală a Modelului (Accuracy)", f"{acc*100:.2f}%")
             
-            # Afișare raport detaliat de metrici sub formă de tabel 
+            # Afisare raport detaliat de metrici sub forma de tabel 
             df_report = pd.DataFrame(report).transpose().iloc[:-3, :3]
             st.markdown("#### Raport de Clasificare Detaliat (Precizie, Recall, F1)")
             st.dataframe(df_report.style.format("{:.4f}"))
             
-            # Generare matrice de confuzie grafică prin Seaborn
+            # Generare matrice de confuzie grafica prin Seaborn
             st.markdown("#### Matricea de Confuzie")
             fig_cm, ax_cm = plt.subplots(figsize=(6, 4))
             sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                         xticklabels=pipeline.classes_, yticklabels=pipeline.classes_, ax=ax_cm)
             ax_cm.set_xlabel("Etichetă Prezistă")
             ax_cm.set_ylabel("Etichetă Reală")
+            plt.xticks(rotation=45) 
             st.pyplot(fig_cm)
         else:
             st.info("Apăsați pe 'Antrenează și Evaluează Modelul' pentru a procesa seturile masive de date.")
@@ -299,7 +298,7 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
     st.subheader("🔮 Modul de Testare în Timp Real (Inference Live)")
     st.markdown("Introduceți un text propriu (în limba engleză) pentru a vedea cum îl clasifică modelul antrenat anterior.")
     
-    text_utilizator = st.text_area("Introduceți textul în engleză aici:", placeholder="Type a custom movie review or a random message to test the classifier...")
+    text_utilizator = st.text_area("Introduceți textul în engleză aici:", placeholder="Type a custom news article (sports, business, etc.) or a random message to test the classifier...")
     
     if st.button("🔮 Prezice Categoria"):
         if 'pipeline_antrenat' in st.session_state:
