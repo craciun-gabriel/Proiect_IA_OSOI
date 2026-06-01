@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import time
 import os
+import base64
 
 from src.utils.io_utils import genereaza_matrice_aleatorie
 from src.backtracking.backtracking import rezolva_tsp_backtracking
@@ -16,12 +17,106 @@ from src.nlp_classification.nlp_classification import evalueaza_nlp
 
 st.set_page_config(page_title="Proiect IA", layout="wide")
 
-modul_principal = st.sidebar.radio("Selectați Modulul Aplicației:", ["🗺️ Optimizare Probleme Combinatorice (TSP)", "🔤 Clasificare Limbaj Natural (NLP)"])
+# Initializam starea paginii
+if 'pagina_curenta' not in st.session_state:
+    st.session_state.pagina_curenta = "Aplicație"
+
+# Functie care ne intoarce la aplicatie cand se schimba modulul din radio button
+def reset_la_aplicatie():
+    st.session_state.pagina_curenta = "Aplicație"
+
+# Meniul lateral superior
+modul_principal = st.sidebar.radio(
+    "Selectați Modulul Aplicației:", 
+    ["🗺️ Optimizare Probleme Combinatorice (TSP)", "🔤 Clasificare Limbaj Natural (NLP)"],
+    on_change=reset_la_aplicatie
+)
+
+st.markdown(
+    """
+    <style>
+    div[data-testid="stSidebarUserContent"] div[data-testid="stVerticalBlock"] {
+        height: auto !important;
+        padding-bottom: 60px !important; 
+    }
+
+    section[data-testid="stSidebar"] {
+        position: relative !important;
+    }
+
+    section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] > div:last-child {
+        position: absolute !important;
+        bottom: 20px !important;      
+        left: 16px !important;        
+        right: 16px !important;       
+        width: calc(100% - 32px) !important;
+        z-index: 999;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+if st.sidebar.button("ℹ️ Informații Echipă", use_container_width=True):
+    st.session_state.pagina_curenta = "Echipă"
+
+# ==========================================
+# ECRANUL DEDICAT: INFORMATII ECHIPA
+# ==========================================
+if st.session_state.pagina_curenta == "Echipă":
+    st.title("🏆 Prezentare Echipă OSOI")
+    st.markdown("### Disciplina: Inteligența Artificială (Anul III)")
+    st.markdown("---")
+
+    def get_image_base64(path):
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+
+    members = [
+        ("Moraru Alex-Iustin", "assets/iustin.jpg"),
+        ("Crăciun Gabriel", "assets/gabriel.jpg"),
+        ("Strugar Sebastian", "assets/sebastian.jpg"),
+    ]
+
+    col_mem1, col_mem2, col_mem3 = st.columns(3)
+    cols = [col_mem1, col_mem2, col_mem3]
+
+    for i, (col, (name, path)) in enumerate(zip(cols, members)):
+        with col:
+            st.subheader(f"🧑‍💻 Membru {i+1}")
+            st.info(f"**{name}**")
+            if os.path.exists(path):
+                img_b64 = get_image_base64(path)
+                ext = path.split(".")[-1]
+                st.markdown(
+                    f"""
+                    <img 
+                        src="data:image/{ext};base64,{img_b64}" 
+                        style="
+                            height: 420px;
+                            width: 100%;
+                            object-fit: cover;
+                            border-radius: 12px;
+                            border: 2px solid #f0f2f6;
+                            display: block;
+                        "
+                    />
+                    <p style="text-align:center; color: gray; font-size: 0.85em; margin-top: 4px;">{name}</p>
+                    """,
+                    unsafe_allow_html=True
+                )
+            else:
+                st.warning("Fotografia lipsă")
+
+    st.markdown("---")
+    if st.button("⬅️ Înapoi la Instrumentele IA"):
+        st.session_state.pagina_curenta = "Aplicație"
+        st.rerun()
 
 # ==========================================
 # MODULUL 1: PROBLEMA COMIS-VOIAJORULUI (TSP)
 # ==========================================
-if modul_principal == "🗺️ Optimizare Probleme Combinatorice (TSP)":
+elif modul_principal == "🗺️ Optimizare Probleme Combinatorice (TSP)":
     st.title("🗺️ Optimizare TSP")
     st.markdown("Implementarea, parametrizarea și compararea vizuală a algoritmilor BKT, NN, HC, SA și GA.")
     
@@ -57,7 +152,6 @@ if modul_principal == "🗺️ Optimizare Probleme Combinatorice (TSP)":
                 params['mod'] = st.selectbox("Mod Oprire:", ["toate", "prima", "timp", "y_solutii"])
                 params['timp_max'] = st.slider("Limită timp (secunde):", 1, 60, 10)
                 params['y_max'] = st.number_input("Număr maxim soluții (Y):", min_value=1, max_value=1000, value=10)
-                st.info("⚠️ BKT este exhaustiv. Pentru N > 12 modul 'toate' poate bloca aplicația.")
                 
             elif algoritm == "Nearest Neighbor (NN-Multistart)":
                 st.info("Algoritm constructive Greedy. Rulează automat din fiecare oraș ca punct de pornire pentru a extrage optimul.")
@@ -123,6 +217,17 @@ if modul_principal == "🗺️ Optimizare Probleme Combinatorice (TSP)":
             sns.heatmap(st.session_state.matrice_curenta, cmap="YlOrRd", ax=ax_map, annot=n_orase <= 15)
             st.pyplot(fig_map)
 
+            # Salvare Matrice
+            df_matrice = pd.DataFrame(st.session_state.matrice_curenta)
+            csv_matrice = df_matrice.to_csv(index=False, header=False).encode('utf-8')
+            st.download_button(
+                label="💾 Descarcă Matricea Generată (.CSV)",
+                data=csv_matrice,
+                file_name=f"matrice_tsp_{n_orase}_orase.csv",
+                mime="text/csv",
+                help="Descarcă matricea de adiacență curentă local în folderul Downloads."
+            )
+
     with tab2:
         st.subheader("Benchmark Comparativ Simultane (Toți Algoritmii)")
         st.markdown("Rulează toți algoritmii simultan pe exact aceeași matrice de distanțe pentru a genera grafice de comparație directă a performanței (Timp vs Calitate Soluție).")
@@ -186,10 +291,7 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
                     return None
                 df = pd.read_csv(cale)
                 
-                # Preprocesare AG News: Combinam Titlul cu Descrierea
                 df['text'] = df['Title'] + " " + df['Description']
-                
-                # Mapam indexul claselor la numele lor reale
                 mapare_clase = {1: 'World', 2: 'Sports', 3: 'Business', 4: 'Sci-Tech'}
                 df['label'] = df['Class Index'].map(mapare_clase)
                 
@@ -238,9 +340,7 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
                                    step=500,
                                    help="Se recomandă între 3000 și 5000 de rânduri pentru o execuție rapidă și stabilă în direct.")
             
-            # Extragerea eșantionului stabil din setul de date
             df_nlp = df_complet.sample(n=nr_randuri, random_state=42).reset_index(drop=True)
-
             df_nlp = df_nlp.dropna(subset=['text', 'label'])
             df_nlp['text'] = df_nlp['text'].astype(str)
         else:
@@ -264,7 +364,6 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
         st.dataframe(df_nlp.head(5), use_container_width=True)
         
         if buton_nlp:
-            # Impartirea datelor in Train (70%) si Test (30%)
             from sklearn.model_selection import train_test_split
             X_train, X_test, y_train, y_test = train_test_split(df_nlp['text'], df_nlp['label'], test_size=0.3, random_state=42)
             
@@ -277,16 +376,14 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
             st.success(f"🚀 Model antrenat pe bune în {timp_nlp:.4f} secunde!")
             st.metric("Acuratețea Generală a Modelului (Accuracy)", f"{acc*100:.2f}%")
             
-            # Afisare raport detaliat de metrici sub forma de tabel 
             df_report = pd.DataFrame(report).transpose().iloc[:-3, :3]
             st.markdown("#### Raport de Clasificare Detaliat (Precizie, Recall, F1)")
             st.dataframe(df_report.style.format("{:.4f}"))
             
-            # Generare matrice de confuzie grafica prin Seaborn
             st.markdown("#### Matricea de Confuzie")
             fig_cm, ax_cm = plt.subplots(figsize=(6, 4))
             sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                        xticklabels=pipeline.classes_, yticklabels=pipeline.classes_, ax=ax_cm)
+                        xticklabels=pipeline.classes_, yticklabels=pipeline.classes_, ax=cm)
             ax_cm.set_xlabel("Etichetă Prezistă")
             ax_cm.set_ylabel("Etichetă Reală")
             plt.xticks(rotation=45) 
