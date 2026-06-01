@@ -21,6 +21,9 @@ st.set_page_config(page_title="Proiect IA", layout="wide")
 if 'pagina_curenta' not in st.session_state:
     st.session_state.pagina_curenta = "Aplicație"
 
+if 'rezultate_tsp' not in st.session_state:
+    st.session_state.rezultate_tsp = None
+
 # Functie care ne intoarce la aplicatie cand se schimba modulul din radio button
 def reset_la_aplicatie():
     st.session_state.pagina_curenta = "Aplicație"
@@ -132,6 +135,8 @@ elif modul_principal == "🗺️ Optimizare Probleme Combinatorice (TSP)":
         
         with col_st:
             n_orase = st.number_input("Număr de orașe (N):", min_value=4, max_value=150, value=st.session_state.n_orase_curent)
+            
+            # Generam matricea noua DOAR daca N s-a schimbat
             if n_orase != st.session_state.n_orase_curent:
                 st.session_state.n_orase_curent = n_orase
                 st.session_state.matrice_curenta = genereaza_matrice_aleatorie(n_orase)
@@ -154,7 +159,7 @@ elif modul_principal == "🗺️ Optimizare Probleme Combinatorice (TSP)":
                 params['y_max'] = st.number_input("Număr maxim soluții (Y):", min_value=1, max_value=1000, value=10)
                 
             elif algoritm == "Nearest Neighbor (NN-Multistart)":
-                st.info("Algoritm constructive Greedy. Rulează automat din fiecare oraș ca punct de pornire pentru a extrage optimul.")
+                st.info("Algoritm constructiv Greedy. Rulează automat din fiecare oraș ca punct de pornire pentru a extrage optimul.")
                 
             elif algoritm == "Hill Climbing (HC)":
                 params['restarts'] = st.slider("Număr de Restarturi Aleatoare:", 1, 50, 15)
@@ -171,10 +176,10 @@ elif modul_principal == "🗺️ Optimizare Probleme Combinatorice (TSP)":
                 params['mutation_rate'] = st.slider("Rata de Mutație (%):", 1, 100, 40)
                 
             st.markdown("---")
-            buton_ruleaza = st.button("🚀 Execută Algoritmul")
+            buton_submit = st.button("🚀 Execută Algoritmul")
             
         with col_dr:
-            if buton_ruleaza:
+            if buton_submit:
                 matrice = st.session_state.matrice_curenta
                 traseu, cost, timp, istoric = [], 0, 0.0, []
                 
@@ -191,41 +196,46 @@ elif modul_principal == "🗺️ Optimizare Probleme Combinatorice (TSP)":
                     elif algoritm == "Algoritm Genetic (GA)":
                         ga = GATSP(matrice, pop_size=params['pop_size'], generations=params['generations'], mutation_rate=params['mutation_rate'])
                         traseu, cost, istoric, timp = ga.solve()
-                        
+                
+                st.session_state.rezultate_tsp = {
+                    "traseu": traseu, "cost": cost, "timp": timp, "istoric": istoric, "n": n_orase
+                }
+
+            if st.session_state.rezultate_tsp is not None:
+                res = st.session_state.rezultate_tsp
                 st.markdown("### 📈 Rezultatele Rulării")
                 c1, c2, c3 = st.columns(3)
-                c1.metric("Cel mai bun Cost (Distanță)", f"{cost} unități")
-                c2.metric("Timp de Execuție", f"{timp:.4f} sec")
-                c3.metric("Dimensiune Problemă (N)", f"{n_orase} orașe")
+                c1.metric("Cel mai bun Cost (Distanță)", f"{res['cost']} unități")
+                c2.metric("Timp de Execuție", f"{res['timp']:.4f} sec")
+                c3.metric("Dimensiune Problemă (N)", f"{res['n']} orașe")
                 
-                st.code(f"Traseu Optim Găsit: {traseu}", language="python")
+                st.code(f"Traseu Optim Găsit: {res['traseu']}", language="python")
                 
-                if len(istoric) > 0:
+                if len(res['istoric']) > 0:
                     st.markdown("#### Curba de Convergență (Evoluția Costului)")
                     fig, ax = plt.subplots(figsize=(10, 4))
-                    ax.plot(istoric, color='#1f77b4', linewidth=2, label="Cost minim curent")
+                    ax.plot(res['istoric'], color='#1f77b4', linewidth=2, label="Cost minim curent")
                     ax.set_xlabel("Iterații / Generații")
                     ax.set_ylabel("Cost Traseu")
                     ax.grid(True, linestyle="--", alpha=0.6)
                     ax.legend()
                     st.pyplot(fig)
             else:
-                st.info("Alegeți parametrii din partea stângă și apăsați butonul 'Execută Algoritmul' pentru a vizualiza performanța.")
+                st.info("Configurați parametrii și apăsați butonul 'Execută Algoritmul' pentru a vizualiza performanța.")
                 
             st.markdown("#### Structura Instanței Curente (Heatmap-ul Matricii de Distanțe)")
             fig_map, ax_map = plt.subplots(figsize=(10, 4))
-            sns.heatmap(st.session_state.matrice_curenta, cmap="YlOrRd", ax=ax_map, annot=n_orase <= 15)
+            sns.heatmap(st.session_state.matrice_curenta, cmap="YlOrRd", ax=ax_map, annot=st.session_state.n_orase_curent <= 15)
             st.pyplot(fig_map)
 
-            # Salvare Matrice
+            # Salvare matrice
             df_matrice = pd.DataFrame(st.session_state.matrice_curenta)
             csv_matrice = df_matrice.to_csv(index=False, header=False).encode('utf-8')
             st.download_button(
                 label="💾 Descarcă Matricea Generată (.CSV)",
                 data=csv_matrice,
-                file_name=f"matrice_tsp_{n_orase}_orase.csv",
-                mime="text/csv",
-                help="Descarcă matricea de adiacență curentă local în folderul Downloads."
+                file_name=f"matrice_tsp_{st.session_state.n_orase_curent}_orase.csv",
+                mime="text/csv"
             )
 
     with tab2:
@@ -261,17 +271,19 @@ elif modul_principal == "🗺️ Optimizare Probleme Combinatorice (TSP)":
             
             col_g1, col_g2 = st.columns(2)
             with col_g1:
-                st.markdown("#### Comparație Cost Traseu (Mai mic = Mai bun)")
+                st.markdown("#### Comparație Cost Traseu")
                 fig_c, ax_c = plt.subplots()
                 sns.barplot(x=df_res.index, y=df_res["Cost"], palette="viridis", ax=ax_c)
+                ax_c.set_xlabel("Algoritmi")
                 plt.xticks(rotation=45)
                 st.pyplot(fig_c)
                 
             with col_g2:
-                st.markdown("#### Comparație Timp de Execuție (Log scale pentru claritate)")
+                st.markdown("#### Comparație Timp de Execuție (secunde) (Log scale pentru claritate)")
                 fig_t, ax_t = plt.subplots()
                 sns.barplot(x=df_res.index, y=df_res["Timp"], palette="magma", ax=ax_t)
                 ax_t.set_yscale('log')
+                ax_t.set_xlabel("Algoritmi")
                 plt.xticks(rotation=45)
                 st.pyplot(fig_t)
 
@@ -383,7 +395,7 @@ elif modul_principal == "🔤 Clasificare Limbaj Natural (NLP)":
             st.markdown("#### Matricea de Confuzie")
             fig_cm, ax_cm = plt.subplots(figsize=(6, 4))
             sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                        xticklabels=pipeline.classes_, yticklabels=pipeline.classes_, ax=cm)
+                        xticklabels=pipeline.classes_, yticklabels=pipeline.classes_, ax=ax_cm)
             ax_cm.set_xlabel("Etichetă Prezistă")
             ax_cm.set_ylabel("Etichetă Reală")
             plt.xticks(rotation=45) 
