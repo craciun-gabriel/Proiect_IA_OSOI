@@ -1,51 +1,55 @@
 import time
 import random
-from simpleai.search import SearchProblem, hill_climbing_random_restarts
 
-class TSPProblem(SearchProblem):
-    """
-    Definește problema Comis-Voiajorului pentru a fi compatibilă cu biblioteca `simpleai`.
-    Starea problemei este un tuplu imutabil reprezentând o permutare a orașelor.
-    """
-    def __init__(self, n, matrice):
+
+class HillClimbingTSP:
+    def __init__(self, n, matrice, restarts=10):
         self.n = n
         self.matrice = matrice
-        initial_state = list(range(n))
-        random.shuffle(initial_state)
-        super().__init__(initial_state=tuple(initial_state))
+        self.restarts = restarts
+        self.k_vecini = min(200, n * (n - 1) // 2)
 
-    def actions(self, state):
-        acts = []
-        for i in range(self.n):
-            for j in range(i + 1, self.n):
-                acts.append((i, j))
-        return acts
+    def _cost(self, traseu):
+        return sum(self.matrice[traseu[i]][traseu[(i + 1) % self.n]] for i in range(self.n))
 
-    def result(self, state, action):
-        state_list = list(state)
-        i, j = action
-        state_list[i:j+1] = reversed(state_list[i:j+1])
-        return tuple(state_list)
+    def _vecin_2opt(self, traseu, i, j):
+        neighbor = traseu[:]
+        neighbor[i:j + 1] = neighbor[i:j + 1][::-1]
+        return neighbor
 
-    def value(self, state):
-        cost = sum(self.matrice[state[i]][state[(i + 1) % self.n]] for i in range(self.n))
-        return -cost 
+    def solve(self):
+        timp_start = time.perf_counter()
 
-    def generate_random_state(self):
-        """
-        Funcție OBLIGATORIE pentru hill_climbing_random_restarts în SimpleAI.
-        Explică algoritmului cum să genereze un nou punct de pornire valid (o nouă permutare).
-        """
-        stare_noua = list(range(self.n))
-        random.shuffle(stare_noua)
-        return tuple(stare_noua)
+        best_traseu = None
+        best_cost = float('inf')
+
+        for _ in range(self.restarts):
+            current = list(range(self.n))
+            random.shuffle(current)
+            c_current = self._cost(current)
+
+            improved = True
+            while improved:
+                improved = False
+                for _ in range(self.k_vecini):
+                    i, j = sorted(random.sample(range(self.n), 2))
+                    neighbor = self._vecin_2opt(current, i, j)
+                    c_neighbor = self._cost(neighbor)
+
+                    if c_neighbor < c_current:
+                        current = neighbor
+                        c_current = c_neighbor
+                        improved = True
+                        break
+
+            if c_current < best_cost:
+                best_cost = c_current
+                best_traseu = current[:]
+
+        timp_executie = time.perf_counter() - timp_start
+        return best_traseu, best_cost, timp_executie
+
 
 def rezolva_tsp_hc(n, matrice, restarts=10):
-    """
-    Aplică algoritmul alpinistului (Hill Climbing) folosind biblioteca `simpleai`.
-    """
-    timp_start = time.perf_counter()
-    problema = TSPProblem(n, matrice)
-    rezultat = hill_climbing_random_restarts(problema, restarts_limit=restarts)
-    timp_executie = time.perf_counter() - timp_start
-    return list(rezultat.state), -problema.value(rezultat.state), timp_executie
+    hc = HillClimbingTSP(n, matrice, restarts=restarts)
+    return hc.solve()
