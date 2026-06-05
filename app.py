@@ -16,6 +16,24 @@ from src.genetic_algorithm.tsp_genetic import GATSP
 from src.nlp_classification.nlp_classification import evalueaza_nlp
 
 st.set_page_config(page_title="Proiect IA", layout="wide")
+st.markdown(
+    """
+    <style>
+    /* Reduce spatiul gol de deasupra continutului principal */
+    .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+    }
+    
+    /* Ajusteaza si spațiul din zona superioara in functie de versiunea de Streamlit */
+    div[data-testid="stHeader"] {
+        height: 2rem !important;
+        background: transparent !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # Initializam starea paginii
 if 'pagina_curenta' not in st.session_state:
@@ -67,8 +85,55 @@ if st.sidebar.button("ℹ️ Informații Echipă", use_container_width=True):
 # ECRANUL DEDICAT: INFORMATII ECHIPA
 # ==========================================
 if st.session_state.pagina_curenta == "Echipă":
-    st.title("🏆 Prezentare Echipă OSOI")
-    st.markdown("### Disciplina: Inteligența Artificială (Anul III)")
+    
+    cale_logo = "assets/logo_OSOI.webp"
+    
+    if os.path.exists(cale_logo):
+        # Daca logo-ul exista, il convertim in Base64 pentru a-l injecta direct in HTML
+        with open(cale_logo, "rb") as f:
+            logo_b64 = base64.b64encode(f.read()).decode()
+        ext_logo = cale_logo.split(".")[-1]
+        
+        st.markdown(
+            f"""
+            <div style="
+                display: flex; 
+                align-items: center; 
+                gap: 15px; 
+                padding: 20px 0 10px 0;
+            ">
+                <img src="data:image/{ext_logo};base64,{logo_b64}" 
+                    style="
+                        height: 150px; 
+                        width: auto; 
+                        object-fit: contain;
+                        display: block;
+                        overflow: visible;
+                    "/>
+                <h1 style="
+                    margin: 0 !important; 
+                    padding: 0 !important;
+                    line-height: 1.2 !important;
+                ">
+                    Prezentare Echipă OSOI
+                </h1>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+    else:
+        # Daca logo-ul lipseste din folder
+        st.title("Prezentare Echipă OSOI")
+
+    #st.markdown("### Disciplina: Inteligența Artificială (Anul III)")
+    st.markdown(
+        """
+        <p style="margin-top: -20px; font-size: 1.8em; font-weight: 600;">
+            Disciplina: Inteligența Artificială (Anul III)
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
     st.markdown("---")
 
     def get_image_base64(path):
